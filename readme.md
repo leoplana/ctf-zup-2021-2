@@ -401,8 +401,8 @@ Esse desafio nos dava um binário, porém diferentemente do primeiro, sem dispon
 
 ![Reverse02](/reverse/rev2/001.png)
 
-Ao digitar uma senha qualquer naturalmente nenhuma flag era printada. Após alguma pesquisa descubro a ferramenta gdb que possibilita debugar um binário em execução,
-mas para isso precisaria primeiro entender um pouco do seu código e utilizei então a ferramente objdump
+Ao digitar uma senha qualquer naturalmente nenhuma flag era printada. Após alguma pesquisa descubro a ferramenta [gdb](#gdb) que possibilita debugar um binário em execução,
+mas para isso precisaria primeiro entender um pouco do seu código e utilizei então a ferramente [objdump](#objdump)
 
 Executei então o comando abaixo para listar um pedaço da execução do código, focando na função de strcmp do C que provavelmente estaria sendo invocada para
 comparação da senha digitada com a senha esperada
@@ -415,7 +415,7 @@ E obtive com isso o código abaixo
 
 ![Reverse02](/reverse/rev2/002.png)
 
-Foi possível perceber que se eu setasse o valor da variável %eax% (em `179c`) para 0 durante a execução desse código utilizando a ferramenta gdb, a flag seria printada independentemente da senha informada, para isso basta executar o comando abaixo
+Foi possível perceber que se eu setasse o valor da variável %eax% (em `179c`) para 0 durante a execução desse código utilizando a ferramenta [gdb](#gdb), a flag seria printada independentemente da senha informada, para isso basta executar o comando abaixo
 
 ```shell
 gdb
@@ -481,7 +481,7 @@ E com isso conseguir a flag => `ZUP-CTF{W3b_pr0_Pr0cton}`
 
 Esse desafio nos apresentava a url http://18.228.46.98:10010/ e um formulário solicitando que fosse feito login como admin
 
-![Reverse01](/web/login/001.png)
+![Login](/web/login/001.png)
 
 Ao inspecionar melhor a resposta do servidor através do comando abaixo
 
@@ -589,7 +589,7 @@ Not this way!
 Após isso tento então atualizar o nome de algum usuário para inserir num lugar que eu poderia ver, a informação que quisesse do banco. Para isso tentei o script abaixo
 
 ```shell
-curl "https://zup-blind.chals.io/?id=2;+update+users+set+name=(select+password+from+users+where+name=+'admin')+where+name='admin'"
+curl "https://zup-blind.chals.io/?id=2;+update+users+set+name=password+where+name='admin'"
 ```
 
 Minha intenção com esse script era setar no lugar do nome do admin a sua senha, e se fosse possível então bastaria atualizar a página e eu veria sua senha. No entanto não estava habilitado no servidor a execução de múltiplas instruções SQL conforme o retorno abaixo
@@ -680,9 +680,9 @@ Para obter a nossa flag => `ZUP-{C0d3 G3ass}`
 
 ### AWS Cli ###
 CLI da AWS disponível neste [link](https://aws.amazon.com/pt/cli/) 
-### dirsearch ###
-Ferramenta open-source de varredura por diretórios comuns disponível [em](https://github.com/maurosoria/dirsearch)
-### Burp Suite Community Edition ###
-Ferramenta para busca de vulnerabilidades web disponível [em](https://portswigger.net/burp/communitydownload)
+### GDB ###
+Ferramenta para debugar binários em sistemas unix-like, já nativa no SO utilizando (Ubuntu)
+### OBJDUMP ###
+Ferramenta para "desmontar" um binário em sistemas unix-like, já nativa no SO utilizando (Ubuntu)
 ### APK Decompiler ###
 Ferramenta para decompilar APK disponível [em](https://www.apkdecompilers.com/)
